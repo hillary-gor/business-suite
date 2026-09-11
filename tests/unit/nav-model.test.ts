@@ -84,6 +84,7 @@ describe('pathIsActive', () => {
 describe('railFromPath', () => {
   it('maps home, module, and report routes onto the rail', () => {
     expect(railFromPath('/', groups)).toBe('home');
+    expect(railFromPath('/business-suite', groups)).toBe('home');
     expect(railFromPath('/sales', groups)).toBe('sales');
     expect(railFromPath('/sales/transactions', groups)).toBe('sales');
     expect(railFromPath('/sales/invoices/new', groups)).toBe('sales');

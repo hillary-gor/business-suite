@@ -42,7 +42,7 @@ begin
     (select count(*) from pg_policy p
        join pg_class c on c.oid = p.polrelid
        join pg_namespace n on n.oid = c.relnamespace
-      where n.nspname in ('app', 'gl', 'inv', 'audit', 'integration', 'sales', 'purch')
+      where n.nspname in ('app', 'gl', 'inv', 'audit', 'integration', 'sales', 'purch', 'library')
         and p.polcmd <> 'r'),
     0);
 
@@ -83,8 +83,17 @@ begin
   perform test.ok(v_suite, 'and it can call the posting engine',
     has_function_privilege('skyjet_app', 'gl.post_entry(uuid, jsonb, text)', 'EXECUTE'));
 
-  perform test.ok(v_suite, 'the application role cannot log in directly',
-    not (select rolcanlogin from pg_roles where rolname = 'skyjet_app'));
+  perform test.ok(v_suite, 'the application role cannot write library documents directly',
+    not has_table_privilege('skyjet_app', 'library.documents', 'INSERT'));
+
+  perform test.ok(v_suite, 'the application role cannot write library access events directly',
+    not has_table_privilege('skyjet_app', 'library.access_events', 'INSERT'));
+
+  perform test.ok(v_suite, 'but it can call the library write functions',
+    has_function_privilege('skyjet_app', 'library.save_document(uuid, jsonb)', 'EXECUTE'));
+
+  perform test.ok(v_suite, 'the application role can update its own profile',
+    has_function_privilege('skyjet_app', 'app.update_own_profile(text, text, text)', 'EXECUTE'));
 
   -- -------------------------------------------------------------------------
   -- The browser
@@ -99,6 +108,18 @@ begin
   perform test.ok(v_suite, 'the browser role cannot reach the posting engine',
     not has_function_privilege('authenticated', 'gl.post_entry(uuid, jsonb, text)', 'EXECUTE'));
 
+  perform test.ok(v_suite, 'the browser role cannot write library documents',
+    not has_function_privilege('authenticated', 'library.save_document(uuid, jsonb)', 'EXECUTE'));
+
+  perform test.ok(v_suite, 'the browser role cannot update a login profile',
+    not has_function_privilege('authenticated', 'app.update_own_profile(text, text, text)', 'EXECUTE'));
+
+  perform test.ok(v_suite, 'the browser role cannot record library access',
+    not has_function_privilege('authenticated', 'library.record_access(uuid, uuid, text, text)', 'EXECUTE'));
+
+  perform test.ok(v_suite, 'the browser role cannot list library access events',
+    not has_function_privilege('authenticated', 'library.list_access_events(uuid, uuid, integer)', 'EXECUTE'));
+
   perform test.ok(v_suite, 'the browser role cannot close a period',
     not has_function_privilege('authenticated', 'gl.close_period(uuid)', 'EXECUTE'));
 
@@ -110,6 +131,9 @@ begin
 
   perform test.ok(v_suite, 'an unauthenticated caller cannot read the ledger',
     not has_table_privilege('anon', 'gl.journal_entry_line', 'SELECT'));
+
+  perform test.ok(v_suite, 'an unauthenticated caller has no access to the library schema',
+    not has_schema_privilege('anon', 'library', 'USAGE'));
 
   -- -------------------------------------------------------------------------
   -- Permissions are enforced, not decorative
@@ -138,7 +162,8 @@ begin
          and rp.permission_code in (
            'gl.post_journal', 'inv.manage_stock', 'admin.manage_users',
            'users.manage', 'sales.invoice.create', 'inventory.stock.adjust',
-           'procurement.purchase.approve', 'finance.payment.create'
+           'procurement.purchase.approve', 'finance.payment.create',
+           'library.document.manage', 'library.document.upload'
          )
     ));
 
@@ -240,7 +265,7 @@ begin
   perform test.eq_num(v_suite, 'no monetary or quantity column uses floating point',
     (select count(*)
        from information_schema.columns
-      where table_schema in ('app', 'gl', 'inv', 'integration', 'sales', 'purch')
+      where table_schema in ('app', 'gl', 'inv', 'integration', 'sales', 'purch', 'library')
         and data_type in ('real', 'double precision')),
     0);
 

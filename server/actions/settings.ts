@@ -4,7 +4,12 @@ import { revalidatePath } from 'next/cache';
 import { z } from 'zod';
 import { issueAccessLink, requestOrigin, supabaseSecretKey } from '@/server/auth/admin';
 import { Permission } from '@/server/auth/permissions';
-import { authorise, requireSession, resolveEntity } from '@/server/auth/session';
+import {
+  authorise,
+  createSupabaseServerClient,
+  requireSession,
+  resolveEntity,
+} from '@/server/auth/session';
 import { userMessage } from '@/server/db/errors';
 import { sendAccessEmail } from '@/server/mail/access';
 import { sendFeedbackEmail } from '@/server/mail/feedback';
@@ -17,6 +22,8 @@ import {
   sendFeedbackInput,
   setUserActiveInput,
   setUserRoleInput,
+  updateOwnProfileInput,
+  changeOwnPasswordInput,
 } from '@/server/modules/settings/schemas';
 import { saveSalesSurveySettings } from '@/server/modules/settings/survey';
 import {
@@ -26,6 +33,7 @@ import {
   provisionEntityUser,
   setEntityUserActive,
   setEntityUserRole,
+  updateOwnProfile,
 } from '@/server/modules/settings/users';
 
 export type ActionResult<T = undefined> =
@@ -43,10 +51,13 @@ export async function saveEntityAction(raw: unknown): Promise<ActionResult<{ ent
       }
       return { ok: false, error: 'Check the highlighted fields.', fields };
     }
-    const { context } = await authorise(Permission.SettingsManage);
+    const { context } = await authorise(Permission.SettingsManage, { module: null });
     const result = await saveEntity(context, parsed.data);
     revalidatePath('/settings/company');
     revalidatePath('/settings/additional');
+    revalidatePath('/library/settings');
+    revalidatePath('/library/settings/company');
+    revalidatePath('/library');
     return { ok: true, data: result, message: 'Company details saved.' };
   } catch (error) {
     console.error('[action:saveEntity]', error);
@@ -67,7 +78,7 @@ export async function saveEntityLogoAction(
     if (!parsed.success) {
       return { ok: false, error: 'Choose a PNG, JPEG, WebP or GIF under 1 MB.' };
     }
-    const { context } = await authorise(Permission.SettingsManage);
+    const { context } = await authorise(Permission.SettingsManage, { module: null });
     const bytes = Buffer.from(parsed.data.base64, 'base64');
     if (bytes.length > 1_048_576) {
       return { ok: false, error: 'Logo must be 1 MB or smaller.' };
@@ -77,6 +88,7 @@ export async function saveEntityLogoAction(
       bytes,
     });
     revalidatePath('/settings/company');
+    revalidatePath('/library/settings/company');
     revalidatePath('/');
     revalidatePath('/sales');
     return { ok: true, data: result, message: 'Company logo saved.' };
@@ -88,9 +100,10 @@ export async function saveEntityLogoAction(
 
 export async function clearEntityLogoAction(): Promise<ActionResult<{ entityId: string }>> {
   try {
-    const { context } = await authorise(Permission.SettingsManage);
+    const { context } = await authorise(Permission.SettingsManage, { module: null });
     const result = await saveEntityLogo(context, { clear: true });
     revalidatePath('/settings/company');
+    revalidatePath('/library/settings/company');
     revalidatePath('/');
     revalidatePath('/sales');
     return { ok: true, data: result, message: 'Company logo reset to the default mark.' };
@@ -121,7 +134,7 @@ export async function inviteUserAction(
         fields: fieldErrors(parsed.error),
       };
     }
-    const { context, entity } = await authorise(Permission.UsersManage);
+    const { context, entity } = await authorise(Permission.UsersManage, { module: null });
     const email = parsed.data.email.trim().toLowerCase();
     const origin = await requestOrigin();
     const roles = await listAssignableRoles(context);
@@ -159,6 +172,7 @@ export async function inviteUserAction(
       roleCode: parsed.data.roleCode,
     });
     revalidatePath('/settings/users');
+    revalidatePath('/library/settings/users');
     revalidatePath('/');
 
     if (!actionLink) {
@@ -206,7 +220,7 @@ export async function resendAccessEmailAction(
     if (!parsed.success) {
       return { ok: false, error: 'That person was not found.' };
     }
-    const { context, entity } = await authorise(Permission.UsersManage);
+    const { context, entity } = await authorise(Permission.UsersManage, { module: null });
     const people = await listEntityUsers(context);
     const target = people.find((person) => person.id === parsed.data.userId);
     if (!target) {
@@ -261,7 +275,7 @@ export async function setUserRoleAction(raw: unknown): Promise<ActionResult<{ us
     if (!parsed.success) {
       return { ok: false, error: 'Choose a role from the list.' };
     }
-    const { context } = await authorise(Permission.UsersManage);
+    const { context } = await authorise(Permission.UsersManage, { module: null });
     const people = await listEntityUsers(context);
     const target = people.find((person) => person.id === parsed.data.userId);
     if (!target) {
@@ -274,6 +288,7 @@ export async function setUserRoleAction(raw: unknown): Promise<ActionResult<{ us
       fullName: target.fullName,
     });
     revalidatePath('/settings/users');
+    revalidatePath('/library/settings/users');
     revalidatePath('/');
     return { ok: true, data: { userId: parsed.data.userId }, message: 'Role saved.' };
   } catch (error) {
@@ -288,12 +303,13 @@ export async function setUserActiveAction(raw: unknown): Promise<ActionResult<{ 
     if (!parsed.success) {
       return { ok: false, error: 'That person was not found.' };
     }
-    const { context, session } = await authorise(Permission.UsersManage);
+    const { context, session } = await authorise(Permission.UsersManage, { module: null });
     if (parsed.data.userId === session.userId && !parsed.data.isActive) {
       return { ok: false, error: 'You cannot deactivate your own account.' };
     }
     await setEntityUserActive(context, parsed.data);
     revalidatePath('/settings/users');
+    revalidatePath('/library/settings/users');
     revalidatePath('/');
     return {
       ok: true,
@@ -351,6 +367,58 @@ export async function sendFeedbackAction(raw: unknown): Promise<ActionResult> {
     return { ok: true, data: undefined, message: 'Thanks — we have the message.' };
   } catch (error) {
     console.error('[action:sendFeedback]', error);
+    return { ok: false, error: userMessage(error) };
+  }
+}
+
+function fieldMap(error: z.ZodError): Record<string, string> {
+  const fields: Record<string, string> = {};
+  for (const issue of error.issues) {
+    const key = issue.path.join('.') || '_form';
+    if (!fields[key]) fields[key] = issue.message;
+  }
+  return fields;
+}
+
+export async function updateOwnProfileAction(
+  raw: unknown,
+): Promise<ActionResult<{ userId: string }>> {
+  try {
+    const parsed = updateOwnProfileInput.safeParse(raw);
+    if (!parsed.success) {
+      return { ok: false, error: 'Check the highlighted fields.', fields: fieldMap(parsed.error) };
+    }
+    const session = await requireSession();
+    const entity = await resolveEntity(session);
+    const result = await updateOwnProfile(
+      { userId: session.userId, entityId: entity.entityId, requestId: session.requestId },
+      parsed.data,
+    );
+    revalidatePath('/', 'layout');
+    revalidatePath('/library', 'layout');
+    revalidatePath('/library/settings/profile');
+    return { ok: true, data: result, message: 'Profile saved.' };
+  } catch (error) {
+    console.error('[action:updateOwnProfile]', error);
+    return { ok: false, error: userMessage(error) };
+  }
+}
+
+export async function changeOwnPasswordAction(raw: unknown): Promise<ActionResult<undefined>> {
+  try {
+    const parsed = changeOwnPasswordInput.safeParse(raw);
+    if (!parsed.success) {
+      return { ok: false, error: 'Check the highlighted fields.', fields: fieldMap(parsed.error) };
+    }
+    await requireSession();
+    const supabase = await createSupabaseServerClient();
+    const { error } = await supabase.auth.updateUser({ password: parsed.data.password });
+    if (error) {
+      return { ok: false, error: error.message };
+    }
+    return { ok: true, data: undefined, message: 'Password updated.' };
+  } catch (error) {
+    console.error('[action:changeOwnPassword]', error);
     return { ok: false, error: userMessage(error) };
   }
 }

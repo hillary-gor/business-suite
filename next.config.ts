@@ -5,10 +5,17 @@ const nextConfig: NextConfig = {
   poweredByHeader: false,
   typedRoutes: true,
   // `pg` opens raw TCP sockets and must never be bundled into a client chunk.
-  serverExternalPackages: ['pg', '@react-pdf/renderer'],
+  serverExternalPackages: [
+    'pg',
+    '@react-pdf/renderer',
+    'unpdf',
+    'tesseract.js',
+    '@napi-rs/canvas',
+    'pdfjs-dist',
+  ],
   experimental: {
     serverActions: {
-      bodySizeLimit: '8mb',
+      bodySizeLimit: '32mb',
     },
   },
   async headers() {

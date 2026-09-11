@@ -416,6 +416,27 @@ export interface AppEntitiesInsert {
   logo_bytes?: Buffer | null;
 }
 
+/** app.entity_modules */
+export interface AppEntityModulesRow {
+  entity_id: string;
+  module_code: string;
+  enabled: boolean;
+  created_at: string;
+  updated_at: string;
+  created_by: string | null;
+  updated_by: string | null;
+}
+
+export interface AppEntityModulesInsert {
+  entity_id: string;
+  module_code: string;
+  enabled?: boolean;
+  created_at?: string;
+  updated_at?: string;
+  created_by?: string | null;
+  updated_by?: string | null;
+}
+
 /** app.fx_rates */
 export interface AppFxRatesRow {
   id: string;
@@ -468,6 +489,25 @@ export interface AppIdempotencyKeysInsert {
   created_at?: string;
   completed_at?: string | null;
   created_by?: string | null;
+}
+
+/** app.modules */
+export interface AppModulesRow {
+  code: string;
+  name: string;
+  description: string;
+  href: string;
+  sort_order: number;
+  created_at: string;
+}
+
+export interface AppModulesInsert {
+  code: string;
+  name: string;
+  description: string;
+  href: string;
+  sort_order: number;
+  created_at?: string;
 }
 
 /** app.numbering_sequences */
@@ -2159,6 +2199,405 @@ export interface InvWarehousesInsert {
   updated_by?: string | null;
 }
 
+/** library.access_events */
+export interface LibraryAccessEventsRow {
+  id: string;
+  entity_id: string;
+  document_id: string;
+  actor_id: string | null;
+  action: string;
+  request_id: string | null;
+  created_at: string;
+}
+
+export interface LibraryAccessEventsInsert {
+  id?: string;
+  entity_id: string;
+  document_id: string;
+  actor_id?: string | null;
+  action: string;
+  request_id?: string | null;
+  created_at?: string;
+}
+
+/** library.access_requests */
+export interface LibraryAccessRequestsRow {
+  id: string;
+  entity_id: string;
+  document_id: string;
+  requester_id: string;
+  reason: string | null;
+  status: string;
+  decided_by: string | null;
+  decided_at: string | null;
+  created_at: string;
+}
+
+export interface LibraryAccessRequestsInsert {
+  id?: string;
+  entity_id: string;
+  document_id: string;
+  requester_id: string;
+  reason?: string | null;
+  status?: string;
+  decided_by?: string | null;
+  decided_at?: string | null;
+  created_at?: string;
+}
+
+/** library.categories */
+export interface LibraryCategoriesRow {
+  id: string;
+  entity_id: string;
+  code: string;
+  name: string;
+  description: string | null;
+  sort_order: number;
+  created_at: string;
+  updated_at: string;
+  created_by: string | null;
+  updated_by: string | null;
+}
+
+export interface LibraryCategoriesInsert {
+  id?: string;
+  entity_id: string;
+  code: string;
+  name: string;
+  description?: string | null;
+  sort_order?: number;
+  created_at?: string;
+  updated_at?: string;
+  created_by?: string | null;
+  updated_by?: string | null;
+}
+
+/** library.collection_documents */
+export interface LibraryCollectionDocumentsRow {
+  collection_id: string;
+  document_id: string;
+  added_at: string;
+  added_by: string | null;
+}
+
+export interface LibraryCollectionDocumentsInsert {
+  collection_id: string;
+  document_id: string;
+  added_at?: string;
+  added_by?: string | null;
+}
+
+/** library.collections */
+export interface LibraryCollectionsRow {
+  id: string;
+  entity_id: string;
+  name: string;
+  description: string | null;
+  created_at: string;
+  updated_at: string;
+  created_by: string | null;
+  updated_by: string | null;
+}
+
+export interface LibraryCollectionsInsert {
+  id?: string;
+  entity_id: string;
+  name: string;
+  description?: string | null;
+  created_at?: string;
+  updated_at?: string;
+  created_by?: string | null;
+  updated_by?: string | null;
+}
+
+/** library.document_comment_reactions */
+export interface LibraryDocumentCommentReactionsRow {
+  comment_id: string;
+  user_id: string;
+  emoji: string;
+  created_at: string;
+}
+
+export interface LibraryDocumentCommentReactionsInsert {
+  comment_id: string;
+  user_id: string;
+  emoji: string;
+  created_at?: string;
+}
+
+/** library.document_comments */
+export interface LibraryDocumentCommentsRow {
+  id: string;
+  entity_id: string;
+  document_id: string;
+  author_id: string;
+  body: string;
+  created_at: string;
+}
+
+export interface LibraryDocumentCommentsInsert {
+  id?: string;
+  entity_id: string;
+  document_id: string;
+  author_id: string;
+  body: string;
+  created_at?: string;
+}
+
+/** library.document_grants */
+export interface LibraryDocumentGrantsRow {
+  document_id: string;
+  user_id: string;
+  entity_id: string;
+  granted_by: string | null;
+  created_at: string;
+}
+
+export interface LibraryDocumentGrantsInsert {
+  document_id: string;
+  user_id: string;
+  entity_id: string;
+  granted_by?: string | null;
+  created_at?: string;
+}
+
+/** library.document_links */
+export interface LibraryDocumentLinksRow {
+  document_id: string;
+  record_schema: string;
+  record_table: string;
+  record_id: string;
+  link_role: string;
+  linked_at: string;
+  linked_by: string | null;
+}
+
+export interface LibraryDocumentLinksInsert {
+  document_id: string;
+  record_schema: string;
+  record_table: string;
+  record_id: string;
+  link_role?: string;
+  linked_at?: string;
+  linked_by?: string | null;
+}
+
+/** library.document_revisions */
+export interface LibraryDocumentRevisionsRow {
+  id: string;
+  document_id: string;
+  entity_id: string;
+  revision_no: number;
+  storage_path: string;
+  file_name: string;
+  file_size: string;
+  mime_type: string;
+  sha256: string;
+  extracted_text: string | null;
+  is_current: boolean;
+  created_at: string;
+  created_by: string | null;
+}
+
+export interface LibraryDocumentRevisionsInsert {
+  id?: string;
+  document_id: string;
+  entity_id: string;
+  revision_no: number;
+  storage_path: string;
+  file_name: string;
+  file_size: string;
+  mime_type: string;
+  sha256: string;
+  extracted_text?: string | null;
+  is_current?: boolean;
+  created_at?: string;
+  created_by?: string | null;
+}
+
+/** library.document_shares */
+export interface LibraryDocumentSharesRow {
+  id: string;
+  entity_id: string;
+  document_id: string;
+  shared_by: string;
+  channel: string;
+  recipient_user_id: string | null;
+  recipient_email: string | null;
+  note: string | null;
+  granted_access: boolean;
+  created_at: string;
+}
+
+export interface LibraryDocumentSharesInsert {
+  id?: string;
+  entity_id: string;
+  document_id: string;
+  shared_by: string;
+  channel: string;
+  recipient_user_id?: string | null;
+  recipient_email?: string | null;
+  note?: string | null;
+  granted_access?: boolean;
+  created_at?: string;
+}
+
+/** library.document_tags */
+export interface LibraryDocumentTagsRow {
+  document_id: string;
+  tag_id: string;
+}
+
+export interface LibraryDocumentTagsInsert {
+  document_id: string;
+  tag_id: string;
+}
+
+/** library.documents */
+export interface LibraryDocumentsRow {
+  id: string;
+  entity_id: string;
+  category_id: string | null;
+  title: string;
+  description: string | null;
+  document_type: string;
+  aircraft_type: string | null;
+  aircraft_model: string | null;
+  part_number: string | null;
+  manufacturer: string | null;
+  revision: string | null;
+  version: string | null;
+  effective_date: string | null;
+  storage_bucket: string;
+  storage_path: string;
+  file_name: string;
+  file_size: string;
+  mime_type: string;
+  sha256: string;
+  status: string;
+  uploaded_by: string | null;
+  archived_at: string | null;
+  archived_by: string | null;
+  created_at: string;
+  updated_at: string;
+  created_by: string | null;
+  updated_by: string | null;
+  classification: string;
+  extracted_text: string | null;
+  search_vector: string | null;
+}
+
+export interface LibraryDocumentsInsert {
+  id?: string;
+  entity_id: string;
+  category_id?: string | null;
+  title: string;
+  description?: string | null;
+  document_type: string;
+  aircraft_type?: string | null;
+  aircraft_model?: string | null;
+  part_number?: string | null;
+  manufacturer?: string | null;
+  revision?: string | null;
+  version?: string | null;
+  effective_date?: string | null;
+  storage_bucket?: string;
+  storage_path: string;
+  file_name: string;
+  file_size: string;
+  mime_type: string;
+  sha256: string;
+  status?: string;
+  uploaded_by?: string | null;
+  archived_at?: string | null;
+  archived_by?: string | null;
+  created_at?: string;
+  updated_at?: string;
+  created_by?: string | null;
+  updated_by?: string | null;
+  classification?: string;
+  extracted_text?: string | null;
+}
+
+/** library.notifications */
+export interface LibraryNotificationsRow {
+  id: string;
+  entity_id: string;
+  user_id: string;
+  kind: string;
+  title: string;
+  body: string | null;
+  href: string | null;
+  document_id: string | null;
+  request_id: string | null;
+  read_at: string | null;
+  created_at: string;
+}
+
+export interface LibraryNotificationsInsert {
+  id?: string;
+  entity_id: string;
+  user_id: string;
+  kind: string;
+  title: string;
+  body?: string | null;
+  href?: string | null;
+  document_id?: string | null;
+  request_id?: string | null;
+  read_at?: string | null;
+  created_at?: string;
+}
+
+/** library.ocr_jobs */
+export interface LibraryOcrJobsRow {
+  id: string;
+  entity_id: string;
+  document_id: string;
+  revision_id: string;
+  storage_path: string;
+  mime_type: string;
+  status: string;
+  attempts: number;
+  last_error: string | null;
+  created_at: string;
+  started_at: string | null;
+  finished_at: string | null;
+  created_by: string | null;
+}
+
+export interface LibraryOcrJobsInsert {
+  id?: string;
+  entity_id: string;
+  document_id: string;
+  revision_id: string;
+  storage_path: string;
+  mime_type: string;
+  status?: string;
+  attempts?: number;
+  last_error?: string | null;
+  created_at?: string;
+  started_at?: string | null;
+  finished_at?: string | null;
+  created_by?: string | null;
+}
+
+/** library.tags */
+export interface LibraryTagsRow {
+  id: string;
+  entity_id: string;
+  name: string;
+  created_at: string;
+  created_by: string | null;
+}
+
+export interface LibraryTagsInsert {
+  id?: string;
+  entity_id: string;
+  name: string;
+  created_at?: string;
+  created_by?: string | null;
+}
+
 /** purch.bill_lines */
 export interface PurchBillLinesRow {
   id: string;
@@ -3276,8 +3715,10 @@ export interface Database {
   'app.document_types': AppDocumentTypesRow;
   'app.employees': AppEmployeesRow;
   'app.entities': AppEntitiesRow;
+  'app.entity_modules': AppEntityModulesRow;
   'app.fx_rates': AppFxRatesRow;
   'app.idempotency_keys': AppIdempotencyKeysRow;
+  'app.modules': AppModulesRow;
   'app.numbering_sequences': AppNumberingSequencesRow;
   'app.payment_terms': AppPaymentTermsRow;
   'app.permissions': AppPermissionsRow;
@@ -3334,6 +3775,22 @@ export interface Database {
   'inv.v_expiry_watch': InvVExpiryWatchRow;
   'inv.v_stock_on_hand': InvVStockOnHandRow;
   'inv.warehouses': InvWarehousesRow;
+  'library.access_events': LibraryAccessEventsRow;
+  'library.access_requests': LibraryAccessRequestsRow;
+  'library.categories': LibraryCategoriesRow;
+  'library.collection_documents': LibraryCollectionDocumentsRow;
+  'library.collections': LibraryCollectionsRow;
+  'library.document_comment_reactions': LibraryDocumentCommentReactionsRow;
+  'library.document_comments': LibraryDocumentCommentsRow;
+  'library.document_grants': LibraryDocumentGrantsRow;
+  'library.document_links': LibraryDocumentLinksRow;
+  'library.document_revisions': LibraryDocumentRevisionsRow;
+  'library.document_shares': LibraryDocumentSharesRow;
+  'library.document_tags': LibraryDocumentTagsRow;
+  'library.documents': LibraryDocumentsRow;
+  'library.notifications': LibraryNotificationsRow;
+  'library.ocr_jobs': LibraryOcrJobsRow;
+  'library.tags': LibraryTagsRow;
   'purch.bill_lines': PurchBillLinesRow;
   'purch.bill_receipt_matches': PurchBillReceiptMatchesRow;
   'purch.bills': PurchBillsRow;

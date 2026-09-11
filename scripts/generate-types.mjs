@@ -17,7 +17,7 @@ import { createDatabase } from './lib/pglite-harness.mjs';
 
 const OUTPUT = resolve('server/db/schema.generated.ts');
 
-const SCHEMAS = ['app', 'gl', 'inv', 'integration', 'audit', 'sales', 'purch'];
+const SCHEMAS = ['app', 'gl', 'inv', 'integration', 'audit', 'sales', 'purch', 'library'];
 
 /** Postgres type to TypeScript type. NUMERIC stays a string, deliberately. */
 const TYPE_MAP = {
@@ -46,6 +46,7 @@ const TYPE_MAP = {
   jsonb: 'unknown',
   bytea: 'Buffer',
   inet: 'string',
+  tsvector: 'string',
   // Domains over numeric, declared in migration 0001.
   money_amount: 'string',
   quantity: 'string',

@@ -83,6 +83,13 @@ export const Permission = {
   AdminManageUsers: 'admin.manage_users',
   AdminManageRoles: 'admin.manage_roles',
   AdminManageEntity: 'admin.manage_entity',
+
+  LibraryDocumentRead: 'library.document.read',
+  LibraryDocumentReadConfidential: 'library.document.read_confidential',
+  LibraryDocumentReadRestricted: 'library.document.read_restricted',
+  LibraryDocumentUpload: 'library.document.upload',
+  LibraryDocumentManage: 'library.document.manage',
+  LibraryAccessRead: 'library.access.read',
 } as const;
 
 export type PermissionCode = (typeof Permission)[keyof typeof Permission];

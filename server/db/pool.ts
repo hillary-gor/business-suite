@@ -114,8 +114,9 @@ export function getPool(): Pool {
 
     // Small on purpose; see note (c) above. Raise it only for a long-lived
     // container, and never above the pooler's per-tenant client limit divided
-    // by the number of instances you expect to run.
-    max: Number(process.env.DATABASE_POOL_MAX ?? 2),
+    // by the number of instances you expect to run. `next dev` is one process,
+    // so a handful of slots is enough to absorb layout and page overlapping.
+    max: Number(process.env.DATABASE_POOL_MAX ?? (process.env.NODE_ENV === 'development' ? 8 : 2)),
 
     // Release connections back to the pooler quickly, since an idle client
     // still occupies a pooler slot.

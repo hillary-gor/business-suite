@@ -1,0 +1,15 @@
+.next
+node_modules
+supabase/.temp
+supabase/.branches
+package-lock.json
+
+# SQL is formatted by hand. The migrations are the specification of the
+# financial invariants and their layout carries meaning that a generic
+# formatter would destroy.
+*.sql
+
+# Generated from the database schema by `npm run db:types`. CI regenerates it
+# and fails if the committed copy differs, so reformatting it here would make
+# that check fail on a file nobody edited.
+server/db/schema.generated.ts

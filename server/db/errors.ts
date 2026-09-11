@@ -42,6 +42,20 @@ export class PermissionDeniedError extends Error {
   }
 }
 
+/** The organisation is not entitled to a product module. The session remains valid. */
+export class ModuleNotEntitledError extends Error {
+  readonly moduleCode: string;
+
+  constructor(moduleCode: string, message?: string) {
+    super(
+      message ??
+        'Your organisation does not currently have access to this area. You are still signed in.',
+    );
+    this.name = 'ModuleNotEntitledError';
+    this.moduleCode = moduleCode;
+  }
+}
+
 export class NotFoundError extends Error {
   constructor(message = 'Not found') {
     super(message);
@@ -184,6 +198,7 @@ export function isUserFacing(error: unknown): boolean {
   return (
     error instanceof BusinessRuleError ||
     error instanceof PermissionDeniedError ||
+    error instanceof ModuleNotEntitledError ||
     error instanceof NotFoundError ||
     error instanceof ConfigurationError
   );

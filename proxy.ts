@@ -25,9 +25,11 @@
  */
 import { NextResponse, type NextRequest } from 'next/server';
 import { createServerClient } from '@supabase/ssr';
+import { PLATFORM_HOME, postSignInPath } from '@/lib/platform/entry';
 
 const PUBLIC_PATHS = [
   '/sign-in',
+  '/login',
   '/auth/callback',
   '/auth/set-password',
   '/auth/forgot-password',
@@ -77,13 +79,14 @@ export default async function proxy(request: NextRequest) {
 
   if (!user && !isPublic) {
     const signIn = new URL('/sign-in', request.url);
-    // Remember where they were going so they land there after signing in.
-    signIn.searchParams.set('next', `${path}${request.nextUrl.search}`);
+    // The domain root is the portal. Do not remember `/` as next — that used
+    // to drop people straight into Business Suite after login.
+    signIn.searchParams.set('next', postSignInPath(`${path}${request.nextUrl.search}`));
     return NextResponse.redirect(signIn);
   }
 
-  if (user && path === '/sign-in') {
-    return NextResponse.redirect(new URL('/', request.url));
+  if (user && (path === '/' || path === '/sign-in' || path === '/login')) {
+    return NextResponse.redirect(new URL(PLATFORM_HOME, request.url));
   }
 
   return response;

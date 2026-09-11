@@ -1,0 +1,108 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  static:
+    name: Lint, typecheck, unit tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npm run format:check
+      - run: npm run lint
+      - run: npm run typecheck
+      - run: npm test
+
+  # The invariant suite against PGlite. Fast, needs no services, and catches a
+  # broken migration before the slower job below is worth waiting for.
+  invariants-fast:
+    name: Database invariants (PGlite)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - name: Apply every migration and the seed
+        run: npm run db:validate
+
+      # Catches a query referring to a column or function that a migration
+      # renamed. That mistake type-checks perfectly and only fails in front of
+      # a user, so it is checked here rather than discovered in production.
+      - name: Check every server query against the schema
+        run: npm run db:check-queries
+
+      - name: Run the invariant suite
+        run: npm run test:sql
+
+  # The same suite against real Supabase Postgres. PGlite is Postgres compiled
+  # to WebAssembly and is very close, but the production database is the one
+  # the guarantees have to hold on, so both are run and neither is optional.
+  invariants-postgres:
+    name: Database invariants (Supabase Postgres)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - uses: supabase/setup-cli@v1
+        with:
+          version: latest
+      - name: Start local Supabase
+        run: supabase start
+      - name: Apply migrations and seed
+        run: supabase db reset
+      - name: Run the invariant suite
+        run: npm run test:sql
+        env:
+          SUPABASE_DB_URL: postgresql://postgres:postgres@127.0.0.1:54322/postgres
+
+      # Generated types are derived from the schema, so a migration that
+      # changes a column and a checked-in types file that still describes the
+      # old one is a discrepancy that will bite at runtime. Regenerating and
+      # diffing catches it here.
+      - name: Check the generated types are up to date
+        run: |
+          npm run db:types
+          git diff --exit-code -- server/db/schema.generated.ts \
+            || (echo "::error::schema.generated.ts is stale. Run npm run db:types and commit the result." && exit 1)
+        env:
+          SUPABASE_DB_URL: postgresql://postgres:postgres@127.0.0.1:54322/postgres
+
+      - name: Dump status on failure
+        if: failure()
+        run: supabase status || true
+
+  build:
+    name: Production build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npm run build
+        env:
+          # The build only needs these to be present and syntactically valid;
+          # it does not connect to anything.
+          NEXT_PUBLIC_SUPABASE_URL: https://placeholder.supabase.co
+          NEXT_PUBLIC_SUPABASE_ANON_KEY: placeholder-anon-key

@@ -97,7 +97,14 @@ insert into app.permissions (code, domain, description, is_sensitive) values
 
   ('reports.view',              'reports',    'View operational and financial reports', false),
   ('users.manage',              'admin',      'Create users and assign roles', true),
-  ('settings.manage',           'admin',      'Amend entity configuration and system settings', true)
+  ('settings.manage',           'admin',      'Amend entity configuration and system settings', true),
+
+  ('library.document.read',               'library', 'View internal library documents and download files', false),
+  ('library.document.read_confidential',  'library', 'Read confidential library documents', true),
+  ('library.document.read_restricted',    'library', 'Read restricted library documents', true),
+  ('library.document.upload',             'library', 'Upload library documents', false),
+  ('library.document.manage',             'library', 'Edit, archive or delete library documents', true),
+  ('library.access.read',                 'library', 'Read who opened or downloaded library documents, and when', true)
 on conflict (code) do nothing;
 
 -- ---------------------------------------------------------------------------
@@ -225,6 +232,51 @@ select r.id, x.code
     ('reports.view'), ('finance.journal.view')
   ) as x(code) on true
  where r.code = 'viewer'
+on conflict do nothing;
+
+-- Skyjet Library uses the same roles. Clearance is the permission, not a
+-- second directory. Migrations that grant these codes run before seed creates
+-- the product roles, so the grants have to live here as well.
+insert into app.role_permissions (role_id, permission_code)
+select r.id, x.code
+  from app.roles r
+  join (values
+    ('library.document.read'),
+    ('library.document.upload'),
+    ('library.document.manage'),
+    ('library.document.read_confidential'),
+    ('library.document.read_restricted'),
+    ('library.access.read')
+  ) as x(code) on true
+ where r.code = 'manager'
+on conflict do nothing;
+
+insert into app.role_permissions (role_id, permission_code)
+select r.id, x.code
+  from app.roles r
+  join (values
+    ('library.document.read'),
+    ('library.document.upload'),
+    ('library.document.manage'),
+    ('library.document.read_confidential')
+  ) as x(code) on true
+ where r.code = 'inventory'
+on conflict do nothing;
+
+insert into app.role_permissions (role_id, permission_code)
+select r.id, x.code
+  from app.roles r
+  join (values
+    ('library.document.read'),
+    ('library.document.read_confidential')
+  ) as x(code) on true
+ where r.code in ('accountant', 'procurement')
+on conflict do nothing;
+
+insert into app.role_permissions (role_id, permission_code)
+select r.id, 'library.document.read'
+  from app.roles r
+ where r.code in ('viewer', 'sales', 'warehouse_operator')
 on conflict do nothing;
 
 -- ---------------------------------------------------------------------------

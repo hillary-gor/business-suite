@@ -18,7 +18,8 @@ import { cache } from 'react';
 import { randomUUID } from 'node:crypto';
 import { cookies } from 'next/headers';
 import { createServerClient } from '@supabase/ssr';
-import { NotFoundError, PermissionDeniedError } from '@/server/db/errors';
+import { PlatformModule, type PlatformModuleCode } from '@/lib/platform/modules';
+import { ModuleNotEntitledError, NotFoundError, PermissionDeniedError } from '@/server/db/errors';
 import { withActorRead, type RequestContext } from '@/server/db/transaction';
 import type { PermissionCode } from '@/server/auth/permissions';
 
@@ -37,6 +38,7 @@ export interface Session {
   readonly isSuperAdmin: boolean;
   readonly entities: readonly EntityAccess[];
   readonly permissionsByEntity: ReadonlyMap<string, ReadonlySet<string>>;
+  readonly modulesByEntity: ReadonlyMap<string, ReadonlySet<string>>;
   readonly requestId: string;
 }
 
@@ -106,6 +108,7 @@ export const getSession = cache(async (): Promise<Session | null> => {
       base_currency: string | null;
       roles: string[] | null;
       permissions: string[] | null;
+      modules: string[] | null;
     }>(
       `select u.id                 as user_id,
               u.email,
@@ -124,7 +127,11 @@ export const getSession = cache(async (): Promise<Session | null> => {
               (select array_agg(distinct p.permission_code)
                  from app.user_effective_permissions p
                 where p.user_id = u.id
-                  and p.entity_id = e.id) as permissions
+                  and p.entity_id = e.id) as permissions,
+              (select coalesce(array_agg(em.module_code order by em.module_code), '{}')
+                 from app.entity_modules em
+                where em.entity_id = e.id
+                  and em.enabled) as modules
          from app.users u
          left join app.entities e
            on e.is_active
@@ -153,6 +160,7 @@ export const getSession = cache(async (): Promise<Session | null> => {
 
   const entities: EntityAccess[] = [];
   const permissionsByEntity = new Map<string, ReadonlySet<string>>();
+  const modulesByEntity = new Map<string, ReadonlySet<string>>();
 
   for (const row of rows) {
     if (!row.entity_id || !row.entity_code || !row.entity_name) continue;
@@ -167,6 +175,10 @@ export const getSession = cache(async (): Promise<Session | null> => {
       row.entity_id,
       new Set((row.permissions ?? []).filter((p): p is string => p !== null)),
     );
+    modulesByEntity.set(
+      row.entity_id,
+      new Set((row.modules ?? []).filter((code): code is string => code !== null)),
+    );
   }
 
   return {
@@ -176,6 +188,7 @@ export const getSession = cache(async (): Promise<Session | null> => {
     isSuperAdmin: first.is_superuser,
     entities,
     permissionsByEntity,
+    modulesByEntity,
     requestId: randomUUID(),
   };
 });
@@ -221,10 +234,15 @@ export async function resolveEntity(session: Session, requested?: string): Promi
  */
 export async function authorise(
   permission: PermissionCode | readonly PermissionCode[],
-  options: { entityId?: string } = {},
+  options: { entityId?: string; module?: PlatformModuleCode | null } = {},
 ): Promise<{ session: Session; entity: EntityAccess; context: RequestContext }> {
   const session = await requireSession();
   const entity = await resolveEntity(session, options.entityId);
+
+  const moduleCode = options.module === undefined ? PlatformModule.BusinessSuite : options.module;
+  if (moduleCode) {
+    assertModuleEntitled(session, entity.entityId, moduleCode);
+  }
 
   const required = typeof permission === 'string' ? [permission] : permission;
   const held = session.permissionsByEntity.get(entity.entityId) ?? new Set<string>();
@@ -250,4 +268,23 @@ export async function authorise(
 /** Whether the caller holds a permission. For hiding buttons, not for guarding. */
 export function can(session: Session, entityId: string, permission: PermissionCode): boolean {
   return session.permissionsByEntity.get(entityId)?.has(permission) ?? false;
+}
+
+/** Whether the organisation is entitled to a module. For hiding cards, not for guarding. */
+export function canAccessModule(
+  session: Session,
+  entityId: string,
+  module: PlatformModuleCode,
+): boolean {
+  return session.modulesByEntity.get(entityId)?.has(module) ?? false;
+}
+
+export function assertModuleEntitled(
+  session: Session,
+  entityId: string,
+  module: PlatformModuleCode,
+): void {
+  if (!canAccessModule(session, entityId, module)) {
+    throw new ModuleNotEntitledError(module);
+  }
 }

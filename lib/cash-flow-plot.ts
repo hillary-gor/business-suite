@@ -5,6 +5,7 @@
  * ledger figure; every amount still originates as Money.
  */
 import { Money } from '@/lib/money';
+import type { CashFlowChartPoint } from '@/lib/cash-flow';
 
 export const FLOW_PLOT = {
   width: 720,

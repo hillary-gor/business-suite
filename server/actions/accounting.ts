@@ -389,25 +389,3 @@ export async function postOpeningBalancesAction(
     };
   });
 }
-
-/** Sets the entity the user is working in, validated against their access. */
-export async function switchEntityAction(entityId: string): Promise<ActionResult> {
-  return run('switchEntity', async () => {
-    const { cookies } = await import('next/headers');
-    // authorise validates the entity against the caller's roles and throws if
-    // they have no access to it.
-    await authorise([], { entityId });
-
-    const store = await cookies();
-    store.set('skyjet_entity', entityId, {
-      httpOnly: true,
-      sameSite: 'lax',
-      secure: process.env.NODE_ENV === 'production',
-      path: '/',
-      maxAge: 60 * 60 * 24 * 365,
-    });
-
-    revalidatePath('/', 'layout');
-    return { ok: true, data: undefined };
-  });
-}

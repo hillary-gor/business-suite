@@ -1,5 +1,15 @@
-import { withReadOnlyTransaction, withTransaction, type RequestContext } from '@/server/db/transaction';
-import type { ProvisionUserInput, SetUserActiveInput, SetUserRoleInput } from './schemas';
+import {
+  withReadOnlyTransaction,
+  withTransaction,
+  type RequestContext,
+  type Transaction,
+} from '@/server/db/transaction';
+import type {
+  ProvisionUserInput,
+  SetUserActiveInput,
+  SetUserRoleInput,
+  UpdateOwnProfileInput,
+} from './schemas';
 
 export interface EntityUser {
   id: string;
@@ -36,11 +46,11 @@ function roleRank(code: string): number {
 
 export async function listAssignableRoles(context: RequestContext): Promise<AssignableRole[]> {
   const rows = await withReadOnlyTransaction(context, (tx) =>
-    tx.query<AssignableRole>(
-      `select code, name, description from app.roles order by name`,
-    ),
+    tx.query<AssignableRole>(`select code, name, description from app.roles order by name`),
   );
-  return [...rows].sort((a, b) => roleRank(a.code) - roleRank(b.code) || a.name.localeCompare(b.name));
+  return [...rows].sort(
+    (a, b) => roleRank(a.code) - roleRank(b.code) || a.name.localeCompare(b.name),
+  );
 }
 
 export async function listEntityUsers(context: RequestContext): Promise<EntityUser[]> {
@@ -107,7 +117,10 @@ export async function lookupAuthUserId(
   );
 }
 
-export async function provisionEntityUser(context: RequestContext, input: ProvisionUserInput & { userId: string }) {
+export async function provisionEntityUser(
+  context: RequestContext,
+  input: ProvisionUserInput & { userId: string },
+) {
   return withTransaction(context, async (tx) => {
     const userId = await tx.scalar<string>(
       `select app.provision_entity_user($1, $2::uuid, $3, $4, $5)`,
@@ -117,7 +130,10 @@ export async function provisionEntityUser(context: RequestContext, input: Provis
   });
 }
 
-export async function setEntityUserRole(context: RequestContext, input: SetUserRoleInput & { email: string; fullName: string }) {
+export async function setEntityUserRole(
+  context: RequestContext,
+  input: SetUserRoleInput & { email: string; fullName: string },
+) {
   return provisionEntityUser(context, {
     userId: input.userId,
     email: input.email,
@@ -132,6 +148,48 @@ export async function setEntityUserActive(context: RequestContext, input: SetUse
       context.entityId,
       input.userId,
       input.isActive,
+    ]);
+    return { userId };
+  });
+}
+
+export interface OwnProfile {
+  email: string;
+  fullName: string;
+  jobTitle: string | null;
+  phone: string | null;
+}
+
+export async function getOwnProfile(context: RequestContext): Promise<OwnProfile> {
+  return withReadOnlyTransaction(context, (tx) => queryOwnProfile(tx, context.userId));
+}
+
+export async function queryOwnProfile(tx: Transaction, userId: string): Promise<OwnProfile> {
+  const row = await tx.one<{
+    email: string;
+    full_name: string;
+    job_title: string | null;
+    phone: string | null;
+  }>(
+    `select email, full_name, job_title, phone
+       from app.users
+      where id = $1`,
+    [userId],
+  );
+  return {
+    email: row.email,
+    fullName: row.full_name,
+    jobTitle: row.job_title,
+    phone: row.phone,
+  };
+}
+
+export async function updateOwnProfile(context: RequestContext, input: UpdateOwnProfileInput) {
+  return withTransaction(context, async (tx) => {
+    const userId = await tx.scalar<string>(`select app.update_own_profile($1, $2, $3)`, [
+      input.fullName,
+      input.jobTitle ?? '',
+      input.phone ?? '',
     ]);
     return { userId };
   });

@@ -50,6 +50,17 @@ export type SetUserActiveInput = z.infer<typeof setUserActiveInput>;
 export type ResendAccessEmailInput = z.infer<typeof resendAccessEmailInput>;
 export type RequestPasswordResetInput = z.infer<typeof requestPasswordResetInput>;
 
+export const updateOwnProfileInput = z.object({
+  fullName: z.string().trim().min(2, 'Enter your name.').max(120),
+  jobTitle: z.string().trim().max(120).optional().or(z.literal('')),
+  phone: z.string().trim().max(40).optional().or(z.literal('')),
+});
+
+export const changeOwnPasswordInput = setPasswordInput;
+
+export type UpdateOwnProfileInput = z.infer<typeof updateOwnProfileInput>;
+export type ChangeOwnPasswordInput = z.infer<typeof changeOwnPasswordInput>;
+
 export const saveEntityInput = z.object({
   legalName: z.string().trim().min(2).max(200),
   tradingName: z.string().trim().max(200).optional().or(z.literal('')),
